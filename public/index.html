@@ -33,7 +33,6 @@
     <style>
       @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
 
-      /* 💡 Global Layout & Reset */
       * {
         text-align: left;
         box-sizing: border-box;
@@ -76,7 +75,6 @@
         z-index: 10;
       }
 
-      /* 📝 Plan Text Clamping */
       .plan-text {
         display: -webkit-box;
         -webkit-line-clamp: 1;
@@ -93,7 +91,6 @@
         white-space: normal;
       }
 
-      /* 💻 Sidebar Laptop Optimization */
       .sidebar-container {
         display: flex;
         flex-direction: column;
@@ -112,7 +109,6 @@
         margin-top: auto;
       }
 
-      /* 💬 Chat Container & Resizing */
       .chat-container {
         transition:
           transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
@@ -144,7 +140,6 @@
         align-items: center;
         justify-content: center;
       }
-
       .resize-handle::after {
         content: "";
         width: 40px;
@@ -153,13 +148,11 @@
         border-radius: 2px;
       }
 
-      /* 🗨️ Chat Bubbles */
       .chat-messages {
         flex: 1;
         overflow-y: auto;
         padding: 16px 20px;
       }
-
       .message-bubble {
         max-width: 90%;
         padding: 8px 14px;
@@ -169,7 +162,6 @@
         position: relative;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
       }
-
       .animate-pop {
         animation: windowPop 0.4s ease-out forwards;
       }
@@ -184,7 +176,6 @@
         }
       }
 
-      /* 🎯 Login UI Button Alignment Fix */
       .login-btn-center {
         display: flex !important;
         justify-content: center !important;
@@ -216,25 +207,19 @@
       const db = firebase.firestore();
       const appId = "shared-workspace-v1";
 
-      // 💡 접속 환경에 따라 백엔드 주소를 유동적으로 결정합니다 (ngrok 대응)
-      const apiBase =
-        window.location.port === "5500"
-          ? "http://localhost:3000"
-          : window.location.origin;
-
       const TEAM_PALETTE = [
         {
           id: "indigo",
           text: "text-indigo-600",
           bg: "bg-indigo-50",
-          border: "border-indigo-100",
+          border: "border-indigo-200",
           bubble: "bg-indigo-50 text-indigo-900 border-indigo-200",
         },
         {
           id: "emerald",
           text: "text-emerald-600",
           bg: "bg-emerald-50",
-          border: "border-emerald-100",
+          border: "border-emerald-200",
           bubble: "bg-emerald-50 text-emerald-900 border-emerald-100",
         },
         {
@@ -426,7 +411,6 @@
         );
       }
 
-      // --- Main App ---
       function App() {
         const [user, setUser] = useState(null);
         const [authMode, setAuthMode] = useState("login");
@@ -435,7 +419,6 @@
         const [loginId, setLoginId] = useState("");
         const [password, setPassword] = useState("");
         const [authError, setAuthError] = useState("");
-
         const [plannerData, setPlannerData] = useState({
           inbox: [],
           daily: [],
@@ -446,20 +429,23 @@
         });
         const [messages, setMessages] = useState([]);
         const [workspaceUsers, setWorkspaceUsers] = useState([]);
-
         const [chatInput, setChatInput] = useState("");
         const [seconds, setSeconds] = useState(0);
         const [isTimerActive, setIsTimerActive] = useState(false);
         const [isChatExpanded, setIsChatExpanded] = useState(false);
         const [chatHeight, setChatHeight] = useState(500);
         const [isResizing, setIsResizing] = useState(false);
-
         const [aiLoading, setAiLoading] = useState(false);
         const [aiRecommendations, setAiRecommendations] = useState([]);
         const [showAIModal, setShowAIModal] = useState(false);
-
         const chatEndRef = useRef(null);
         const chatContainerRef = useRef(null);
+
+        // 💡 접속 환경 자동 감지 (ngrok 대응)
+        const apiBase =
+          window.location.port === "5500"
+            ? "http://localhost:3000"
+            : window.location.origin;
 
         const getThemeByNicknameLocal = (name) => {
           if (!name) return TEAM_PALETTE[0];
@@ -588,10 +574,8 @@
               res = await auth.signInWithEmailAndPassword(email, password);
             else
               res = await auth.createUserWithEmailAndPassword(email, password);
-
             localStorage.setItem("nickname", nickname);
             localStorage.setItem("teamId", loginId);
-
             await db
               .collection("artifacts")
               .doc(appId)
@@ -668,13 +652,13 @@
             .delete();
         };
 
+        // 💡 AI 조언 함수 수정: apiBase 적용
         const fetchAIAdvice = async () => {
           if (aiLoading) return;
           setAiLoading(true);
           setShowAIModal(true);
           setAiRecommendations([]);
           try {
-            // 💡 하드코딩된 localhost 대신 apiBase를 사용하여 호출합니다.
             const res = await fetch(`${apiBase}/api/ai/recommend`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -749,7 +733,6 @@
                 <p className="text-slate-400 mb-10 text-[11px] font-black uppercase tracking-widest text-center-force w-full">
                   TEAM WORKSPACE
                 </p>
-
                 <form
                   onSubmit={handleAuthSubmit}
                   className="w-full flex flex-col items-center space-y-6"
@@ -783,7 +766,6 @@
                       {authError}
                     </p>
                   )}
-
                   <button
                     type="submit"
                     className="w-full h-[64px] bg-lightAccent text-white rounded-[2.2rem] font-black hover:opacity-90 active:scale-95 text-lg uppercase shadow-xl transition-all login-btn-center"
@@ -791,7 +773,6 @@
                     입장하기
                   </button>
                 </form>
-
                 <button
                   onClick={() =>
                     setAuthMode(authMode === "login" ? "signup" : "login")
@@ -809,7 +790,7 @@
         return (
           <div className="h-screen flex flex-col p-6 gap-4 text-left">
             <header className="glass-header rounded-[2.2rem] px-10 py-4 flex justify-between items-center shrink-0 panel-border relative z-50">
-              <div className="flex items-center gap-8">
+              <div className="flex items-center gap-8 text-left">
                 <div className="flex flex-col text-left">
                   <span className="text-2xl font-black text-lightAccent italic tracking-tight text-left">
                     Smart Planner
@@ -873,11 +854,11 @@
               </div>
 
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-80 text-center">
-                <h1 className="text-lg font-bold text-lightAccent italic truncate max-w-lg text-center-force w-full tracking-tight">
+                <h1 className="text-lg font-bold text-lightAccent italic truncate max-w-lg text-center-force w-full tracking-tight text-center">
                   "{plannerData?.motto || "오늘의 목표를 설정하세요"}"
                 </h1>
                 {plannerData?.memo && (
-                  <p className="text-[10px] text-slate-400 font-bold truncate max-w-md mt-0.5 text-center-force w-full uppercase tracking-tighter">
+                  <p className="text-[10px] text-slate-400 font-bold truncate max-w-md mt-0.5 text-center-force w-full uppercase tracking-tighter text-center">
                     {plannerData.memo}
                   </p>
                 )}
@@ -885,7 +866,7 @@
 
               <div className="flex gap-4 items-center text-right">
                 <div className="hidden xl:block text-right mr-2">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
                     TEAM ID
                   </p>
                   <p className="text-sm font-bold text-slate-700 text-right uppercase">
@@ -911,7 +892,7 @@
                     <input
                       id="todo-input"
                       placeholder="계획을 적어주세요"
-                      className="w-full p-4.5 bg-slate-50 border-2 border-slate-100 rounded-[1.8rem] outline-none focus:ring-2 focus:ring-lightAccent/50 font-medium text-[14px] px-8 block"
+                      className="w-full p-4.5 bg-slate-50 border-2 border-slate-100 rounded-[1.8rem] outline-none focus:ring-2 focus:ring-lightAccent/50 font-medium text-[14px] px-8 block text-left"
                       onKeyDown={(e) => e.key === "Enter" && addTask("inbox")}
                     />
                     <div className="flex gap-2 text-left">
@@ -996,7 +977,7 @@
                         ? "AI 분석 설계 중..."
                         : "✨ AI 맞춤 추천 받기"}
                     </button>
-                    <div className="grid grid-cols-1 gap-4 opacity-70 px-1 text-left text-left">
+                    <div className="grid grid-cols-1 gap-4 opacity-70 px-1 text-left text-left text-left">
                       <div>
                         <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-2 block text-left">
                           Focus Motto
@@ -1033,7 +1014,7 @@
                 </div>
               </aside>
 
-              <main className="flex-1 grid grid-cols-3 gap-5 overflow-hidden h-full text-left">
+              <main className="flex-1 grid grid-cols-3 gap-5 overflow-hidden h-full text-left text-left">
                 <Column
                   title="오늘 계획"
                   category="daily"
@@ -1223,7 +1204,6 @@
                 </div>
                 <CircularProgress percentage={calculateProgress()} />
               </div>
-              {/* 💡 채팅 영역 col-span-2 적용 및 확장 */}
               <div
                 ref={chatContainerRef}
                 className={`col-span-2 bg-white chat-container ${isChatExpanded ? "expanded" : ""} text-left`}
@@ -1238,7 +1218,7 @@
                         setIsResizing(true);
                       }}
                     ></div>
-                    <div className="chat-messages scroll-hide text-left flex-1 overflow-y-auto">
+                    <div className="chat-messages scroll-hide text-left flex-1 overflow-y-auto text-left">
                       {messages.length > 0 ? (
                         messages.map((m, i) => {
                           const theme = getThemeByNicknameLocal(m.senderName);
@@ -1283,7 +1263,7 @@
                   </>
                 )}
                 <div className="h-20 flex items-stretch bg-white border-t shrink-0 text-left px-4">
-                  <div className="flex-1 relative flex items-center text-left">
+                  <div className="flex-1 relative flex items-center text-left text-left">
                     <input
                       type="text"
                       value={chatInput}
@@ -1300,6 +1280,79 @@
                 </div>
               </div>
             </footer>
+
+            {/* 💡 누락되었던 AI 추천 모달창 코드를 추가했습니다. */}
+            {showAIModal && (
+              <div className="fixed inset-0 z-[250] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md">
+                <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl p-12 animate-pop text-left">
+                  <div className="flex justify-between items-center mb-8 text-left text-left text-left">
+                    <div className="flex items-center gap-5 text-left text-left text-left">
+                      <div className="w-14 h-14 bg-lightAccent text-white rounded-2xl flex items-center justify-center text-3xl shadow-lg shadow-lightAccent/20 text-center-force text-center-force">
+                        ✨
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-black tracking-tight text-center-force w-full">
+                          AI 추천 가이드
+                        </h3>
+                        <p className="text-sm font-bold text-lightAccent uppercase text-center-force w-full font-sans">
+                          Intelligence
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowAIModal(false)}
+                      className="text-slate-400 hover:text-lightAccent text-3xl text-center-force"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="min-h-[300px] mb-8 space-y-4 text-left">
+                    {aiLoading ? (
+                      <div className="h-full flex flex-col items-center justify-center gap-4 py-20 text-center-force w-full">
+                        <div className="w-12 h-12 border-4 border-lightAccent border-t-transparent rounded-full animate-spin text-center-force"></div>
+                        <p className="text-lightAccent font-bold text-center-force w-full">
+                          AI 분석 중...
+                        </p>
+                      </div>
+                    ) : aiRecommendations.length === 0 ? (
+                      <div className="py-20 text-center-force opacity-50 w-full">
+                        <p className="font-bold text-center-force w-full">
+                          데이터를 분석 중입니다.
+                        </p>
+                      </div>
+                    ) : (
+                      aiRecommendations.map((r, i) => (
+                        <div
+                          key={i}
+                          className="recom-panel p-6 rounded-3xl flex items-center justify-between gap-6 transition-all bg-slate-50 text-left"
+                        >
+                          <div className="flex-1 text-left text-left text-left">
+                            <h4 className="text-lg font-black text-lightAccent mb-1 text-left">
+                              {r.title}
+                            </h4>
+                            <p className="text-sm font-medium text-slate-500 text-left">
+                              {r.desc}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => addRecommendedTask(r.title)}
+                            className="shrink-0 px-6 py-3 bg-lightAccent text-white rounded-2xl font-black text-xs hover:scale-105 active:scale-95 transition-all text-center-force"
+                          >
+                            추가 +
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setShowAIModal(false)}
+                    className="w-full py-5 border-2 border-slate-100 text-slate-400 rounded-3xl font-bold hover:bg-slate-50 transition-all text-center-force"
+                  >
+                    닫기
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         );
       }
