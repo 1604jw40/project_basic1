@@ -10,7 +10,6 @@ use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeFile;
 use reqwest::Client;
-use std::env;
 
 // AI 추천 요청 데이터 구조
 #[derive(Deserialize)]
@@ -20,7 +19,7 @@ struct AIRequest {
     plans: String,
 }
 
-// 프론트엔드에 전달할 Firebase 설정 구조체 (camelCase 매핑)
+// 프론트엔드에 전달할 Firebase 설정 구조체
 #[derive(Serialize)]
 struct FirebaseConfig {
     #[serde(rename = "apiKey")]
@@ -41,60 +40,51 @@ struct FirebaseConfig {
 
 #[tokio::main]
 async fn main() {
-    // 1. .env 파일로드
-    dotenv::dotenv().ok();
-
-    // CORS 설정: 외부 접속(ngrok) 및 로컬 테스트를 위해 모든 출처 허용
+    // CORS 설정: 외부 접속 및 로컬 테스트를 위해 모든 출처 허용
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
         .allow_headers(Any);
 
-    // 2. 라우터 설정
+    // 라우터 설정
     let app = Router::new()
-        // 루트 접속 시 index.html 서빙 (ServeFile 사용으로 경로 안정성 확보)
+        // 루트 접속 시 index.html 서빙
         .route("/", get_service(ServeFile::new("public/index.html")).handle_error(|_| async {
             StatusCode::INTERNAL_SERVER_ERROR
         }))
-        // Firebase 설정을 넘겨주는 브릿지 API
+        // Firebase 설정을 반환하는 API
         .route("/api/config/firebase", get(get_firebase_config))
-        // AI 추천 API
+        // AI 추천 분석 API
         .route("/api/ai/recommend", post(handle_ai_recommendation))
         .layer(cors);
 
-    // 서버 바인딩 (기본 3000번 포트)
-    let port = env::var("PORT").unwrap_or_else(|_| "3000".to_string());
-    let addr = format!("0.0.0.0:{}", port).parse::<SocketAddr>().expect("유효하지 않은 주소입니다.");
-    
-    println!("🚀 Smart Planner Server 가동 중: http://localhost:{}", port);
+    // 포트 설정 (기본 3000)
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+    println!("🚀 Smart Planner Server 가동 중: http://localhost:3000");
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
-// .env에서 Firebase 정보를 읽어 JSON으로 반환하는 함수
+// 💡 Firebase 정보를 코드에 직접 명시하여 반환합니다.
 async fn get_firebase_config() -> impl IntoResponse {
     let config = FirebaseConfig {
-        api_key: env::var("FIREBASE_API_KEY").unwrap_or_default(),
-        auth_domain: env::var("FIREBASE_AUTH_DOMAIN").unwrap_or_default(),
-        project_id: env::var("FIREBASE_PROJECT_ID").unwrap_or_default(),
-        storage_bucket: env::var("FIREBASE_STORAGE_BUCKET").unwrap_or_default(),
-        messaging_sender_id: env::var("FIREBASE_MESSAGING_SENDER_ID").unwrap_or_default(),
-        app_id: env::var("FIREBASE_APP_ID").unwrap_or_default(),
-        measurement_id: env::var("FIREBASE_MEASUREMENT_ID").unwrap_or_default(),
+        api_key: "AIzaSyDJQwt9GT0MrkSqs1gzFEcRBAmY0-xYRO0".to_string(),
+        auth_domain: "projectbasic1-57e28.firebaseapp.com".to_string(),
+        project_id: "projectbasic1-57e28".to_string(),
+        storage_bucket: "projectbasic1-57e28.firebasestorage.app".to_string(),
+        messaging_sender_id: "610613658787".to_string(),
+        app_id: "1:610613658787:web:5bec507bac0a9ed1512b16".to_string(),
+        measurement_id: "G-FZES5J73VK".to_string(),
     };
     Json(config)
 }
 
 // Google Gemini API를 호출하여 결과를 반환하는 함수
 async fn handle_ai_recommendation(Json(payload): Json<AIRequest>) -> impl IntoResponse {
-    // .env에서 API 키 로드
-    let api_key = match env::var("GEMINI_API_KEY") {
-        Ok(key) => key,
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "서버에 GEMINI_API_KEY가 설정되지 않았습니다.").into_response(),
-    };
+    // 💡 Gemini API 키를 코드에 직접 명시합니다.
+    let api_key = "AIzaSyD1CqpjQfcaZLbn3DZ7jT7ovXsOJ6f5UM0";
 
-    // 최신 모델 주소 설정 (사용자 요청에 따른 gemini-2.5-flash 사용)
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={}",
         api_key
