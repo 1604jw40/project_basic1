@@ -1,0 +1,14 @@
+[package]
+name = "smart-planner-backend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+reqwest = { version = "0.11", features = ["json"] }
+# fs 기능을 추가하여 HTML 파일을 읽어올 수 있게 합니다.
+tower-http = { version = "0.5", features = ["cors", "fs"] } 
+dotenv = "0.15"

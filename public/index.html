@@ -1,0 +1,1311 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart Planner - Team Workspace</title>
+    <!-- Core Libraries -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Firebase SDK (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore-compat.js"></script>
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              lightBg: "#F8FAFC",
+              lightText: "#1E293B",
+              lightAccent: "#007BFF",
+              complementary: "#f59e0b",
+            },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
+
+      /* 💡 Global Layout & Reset */
+      * {
+        text-align: left;
+        box-sizing: border-box;
+      }
+      .text-center-force {
+        text-align: center !important;
+      }
+
+      body {
+        font-family: "Pretendard", sans-serif;
+        background-color: #f8fafc;
+        color: #1e293b;
+        overflow: hidden;
+        height: 100vh;
+        margin: 0;
+      }
+
+      .scroll-hide::-webkit-scrollbar {
+        display: none;
+      }
+
+      .glass-header {
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+      }
+
+      .panel-border {
+        border: 2px solid rgba(0, 0, 0, 0.08);
+        box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.05);
+      }
+
+      .item-card {
+        transition: all 0.2s ease;
+        border-width: 2px;
+      }
+      .item-card:hover {
+        transform: translateY(-1.5px);
+        box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.08);
+        z-index: 10;
+      }
+
+      /* 📝 Plan Text Clamping */
+      .plan-text {
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        transition: all 0.3s ease;
+      }
+      .item-card:hover .plan-text {
+        -webkit-line-clamp: unset;
+        line-clamp: unset;
+        display: block;
+        overflow: visible;
+        white-space: normal;
+      }
+
+      /* 💻 Sidebar Laptop Optimization */
+      .sidebar-container {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+      .sidebar-scroll-area {
+        flex: 1;
+        overflow-y: auto;
+        min-height: 0;
+        padding-right: 4px;
+      }
+      .sidebar-footer {
+        flex-shrink: 0;
+        padding-top: 1.25rem;
+        border-top: 1px solid #f1f5f9;
+        margin-top: auto;
+      }
+
+      /* 💬 Chat Container & Resizing */
+      .chat-container {
+        transition:
+          transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+          height 0.1s linear;
+        height: 80px;
+        background: white;
+        z-index: 150;
+        display: flex;
+        flex-direction: column;
+        border-radius: 2.2rem;
+        box-shadow: 0 -4px 20px -5px rgba(0, 0, 0, 0.03);
+        border: 2px solid #e2e8f0;
+      }
+
+      .chat-container.expanded {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        left: 408px;
+        border-radius: 2.8rem;
+        box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.18);
+      }
+
+      .resize-handle {
+        height: 12px;
+        width: 100%;
+        cursor: ns-resize;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .resize-handle::after {
+        content: "";
+        width: 40px;
+        height: 4px;
+        background: #e2e8f0;
+        border-radius: 2px;
+      }
+
+      /* 🗨️ Chat Bubbles */
+      .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px 20px;
+      }
+
+      .message-bubble {
+        max-width: 90%;
+        padding: 8px 14px;
+        border-radius: 1.1rem;
+        font-size: 13px;
+        line-height: 1.5;
+        position: relative;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+      }
+
+      .animate-pop {
+        animation: windowPop 0.4s ease-out forwards;
+      }
+      @keyframes windowPop {
+        0% {
+          opacity: 0;
+          transform: scale(0.95) translateY(10px);
+        }
+        100% {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+
+      /* 🎯 Login UI Button Alignment Fix */
+      .login-btn-center {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        text-align: center !important;
+        padding: 0 !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" class="h-full"></div>
+
+    <script type="text/babel">
+      const { useState, useEffect, useRef, useMemo } = React;
+
+      // 🔐 Firebase Configuration
+      const firebaseConfig = {
+        apiKey: "AIzaSyDJQwt9GT0MrkSqs1gzFEcRBAmY0-xYRO0",
+        authDomain: "projectbasic1-57e28.firebaseapp.com",
+        projectId: "projectbasic1-57e28",
+        storageBucket: "projectbasic1-57e28.firebasestorage.app",
+        messagingSenderId: "610613658787",
+        appId: "1:610613658787:web:5bec507bac0a9ed1512b16",
+        measurementId: "G-FZES5J73VK",
+      };
+
+      if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+      const auth = firebase.auth();
+      const db = firebase.firestore();
+      const appId = "shared-workspace-v1";
+
+      // 💡 접속 환경에 따라 백엔드 주소를 유동적으로 결정합니다 (ngrok 대응)
+      const apiBase =
+        window.location.port === "5500"
+          ? "http://localhost:3000"
+          : window.location.origin;
+
+      const TEAM_PALETTE = [
+        {
+          id: "indigo",
+          text: "text-indigo-600",
+          bg: "bg-indigo-50",
+          border: "border-indigo-100",
+          bubble: "bg-indigo-50 text-indigo-900 border-indigo-200",
+        },
+        {
+          id: "emerald",
+          text: "text-emerald-600",
+          bg: "bg-emerald-50",
+          border: "border-emerald-100",
+          bubble: "bg-emerald-50 text-emerald-900 border-emerald-100",
+        },
+        {
+          id: "rose",
+          text: "text-rose-600",
+          bg: "bg-rose-50",
+          border: "border-rose-200",
+          bubble: "bg-rose-50 text-rose-900 border-rose-100",
+        },
+        {
+          id: "amber",
+          text: "text-amber-600",
+          bg: "bg-amber-50",
+          border: "border-amber-200",
+          bubble: "bg-amber-50 text-amber-900 border-amber-100",
+        },
+      ];
+
+      const getThemeByNickname = (name, users) => {
+        if (!name) return TEAM_PALETTE[0];
+        const foundIndex = users.findIndex((u) => u.name === name);
+        const safeIndex = foundIndex === -1 ? 0 : foundIndex;
+        return TEAM_PALETTE[safeIndex % TEAM_PALETTE.length];
+      };
+
+      // --- Shared UI Components ---
+      function CircularProgress({ percentage = 0 }) {
+        const safePercentage = isNaN(percentage) ? 0 : percentage;
+        return (
+          <div className="relative flex items-center justify-center shrink-0 w-[60px] h-[60px]">
+            <svg width="60" height="60" className="transform -rotate-90">
+              <circle
+                cx="30"
+                cy="30"
+                r="27"
+                stroke="#E2E8F0"
+                strokeWidth="5"
+                fill="transparent"
+              />
+              <circle
+                cx="30"
+                cy="30"
+                r="27"
+                stroke="#f59e0b"
+                strokeWidth="5"
+                fill="transparent"
+                strokeDasharray="169.64"
+                strokeDashoffset={169.64 - (safePercentage / 100) * 169.64}
+                strokeLinecap="round"
+                className="transition-all duration-1000"
+              />
+            </svg>
+            <span className="absolute text-[10px] font-black text-complementary text-center-force w-full">
+              {safePercentage}%
+            </span>
+          </div>
+        );
+      }
+
+      function TaskItem({
+        item,
+        category,
+        onToggle,
+        onDragStart,
+        onToggleStar,
+        onDelete,
+        teamTheme,
+      }) {
+        return (
+          <div
+            draggable
+            onDragStart={(e) => onDragStart(e, item.id, category)}
+            className={`px-5 py-4 rounded-[1.5rem] flex items-center gap-4 cursor-grab item-card mb-3 bg-white border ${teamTheme.border} ${item.done ? "opacity-30 grayscale" : ""}`}
+          >
+            <input
+              type="checkbox"
+              checked={item.done}
+              onChange={() => onToggle(category, item.id)}
+              className={`w-4 h-4 rounded border-2 focus:ring-0 cursor-pointer ${teamTheme.text}`}
+            />
+            <div className="flex-1 min-w-0">
+              <p
+                className={`plan-text text-[14px] font-bold ${item.done ? "line-through text-slate-400" : "text-slate-700"}`}
+              >
+                {item.text}
+              </p>
+              <div className="mt-0.5">
+                <span
+                  className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${teamTheme.bg} ${teamTheme.text}`}
+                >
+                  {item.creatorName || "Member"}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => onToggleStar(category, item.id)}
+                className={`text-base ${item.important ? "text-amber-500" : "text-slate-300 hover:text-amber-400"}`}
+              >
+                {item.important ? "★" : "☆"}
+              </button>
+              <button
+                onClick={() => onDelete(item.id, category)}
+                className="text-slate-300 hover:text-red-400 text-xs"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      function Column({
+        title,
+        category,
+        items = [],
+        onMove,
+        onToggle,
+        onToggleStar,
+        onDelete,
+        onClear,
+        accentColor,
+        getThemeByNickname,
+      }) {
+        const themeMap = {
+          emerald: "border-emerald-200",
+          amber: "border-amber-200",
+          rose: "border-rose-200",
+        };
+        const colorTextClass = {
+          emerald: "text-emerald-600",
+          amber: "text-amber-600",
+          rose: "text-rose-600",
+        }[accentColor];
+        return (
+          <section
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) =>
+              onMove(
+                Number(e.dataTransfer.getData("id")),
+                e.dataTransfer.getData("from"),
+                category,
+              )
+            }
+            className={`bg-white rounded-[2.5rem] p-8 flex flex-col border-2 ${themeMap[accentColor]} shadow-sm h-full overflow-hidden`}
+          >
+            <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-3">
+                <h3
+                  className={`text-sm font-black uppercase tracking-widest ${colorTextClass}`}
+                >
+                  {title}
+                </h3>
+                <span className="text-[10px] font-black px-3 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
+                  {items.length}
+                </span>
+              </div>
+              <button
+                onClick={() => onClear(category)}
+                className="p-2 text-slate-300 hover:text-red-400 text-xs font-bold uppercase"
+              >
+                🗑️
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto scroll-hide pr-1">
+              {items.length === 0 ? (
+                <div className="h-full flex items-center justify-center opacity-10 font-bold uppercase tracking-widest text-xs text-center-force w-full">
+                  Ready
+                </div>
+              ) : (
+                items.map((item) => (
+                  <TaskItem
+                    key={item.id}
+                    item={item}
+                    category={category}
+                    teamTheme={getThemeByNickname(item.creatorName)}
+                    onToggle={onToggle}
+                    onToggleStar={onToggleStar}
+                    onDelete={onDelete}
+                    onDragStart={(e, id, from) => {
+                      e.dataTransfer.setData("id", String(id));
+                      e.dataTransfer.setData("from", from);
+                    }}
+                  />
+                ))
+              )}
+            </div>
+          </section>
+        );
+      }
+
+      // --- Main App ---
+      function App() {
+        const [user, setUser] = useState(null);
+        const [authMode, setAuthMode] = useState("login");
+        const [nickname, setNickname] = useState("");
+        const [loading, setLoading] = useState(true);
+        const [loginId, setLoginId] = useState("");
+        const [password, setPassword] = useState("");
+        const [authError, setAuthError] = useState("");
+
+        const [plannerData, setPlannerData] = useState({
+          inbox: [],
+          daily: [],
+          weekly: [],
+          monthly: [],
+          motto: "",
+          memo: "",
+        });
+        const [messages, setMessages] = useState([]);
+        const [workspaceUsers, setWorkspaceUsers] = useState([]);
+
+        const [chatInput, setChatInput] = useState("");
+        const [seconds, setSeconds] = useState(0);
+        const [isTimerActive, setIsTimerActive] = useState(false);
+        const [isChatExpanded, setIsChatExpanded] = useState(false);
+        const [chatHeight, setChatHeight] = useState(500);
+        const [isResizing, setIsResizing] = useState(false);
+
+        const [aiLoading, setAiLoading] = useState(false);
+        const [aiRecommendations, setAiRecommendations] = useState([]);
+        const [showAIModal, setShowAIModal] = useState(false);
+
+        const chatEndRef = useRef(null);
+        const chatContainerRef = useRef(null);
+
+        const getThemeByNicknameLocal = (name) => {
+          if (!name) return TEAM_PALETTE[0];
+          const index = workspaceUsers.findIndex((u) => u.name === name);
+          return TEAM_PALETTE[(index === -1 ? 0 : index) % TEAM_PALETTE.length];
+        };
+
+        const calculateProgress = () => {
+          const all = [
+            ...(plannerData?.daily || []),
+            ...(plannerData?.weekly || []),
+            ...(plannerData?.monthly || []),
+            ...(plannerData?.inbox || []),
+          ];
+          return all.length === 0
+            ? 0
+            : Math.round((all.filter((t) => t.done).length / all.length) * 100);
+        };
+
+        const sync = async (newData) => {
+          if (user)
+            await db
+              .collection("artifacts")
+              .doc(appId)
+              .collection("public")
+              .doc("data")
+              .collection("workspace_planner")
+              .doc("main")
+              .set(newData, { merge: true });
+        };
+
+        useEffect(() => {
+          let interval = null;
+          if (isTimerActive)
+            interval = setInterval(() => setSeconds((s) => s + 1), 1000);
+          return () => clearInterval(interval);
+        }, [isTimerActive]);
+
+        const formatTime = (s) => {
+          const hrs = Math.floor(s / 3600);
+          const mins = Math.floor((s % 3600) / 60);
+          const secs = s % 60;
+          return `${hrs > 0 ? hrs + ":" : ""}${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+        };
+
+        useEffect(() => {
+          const move = (e) => {
+            if (isResizing)
+              setChatHeight(
+                Math.max(
+                  200,
+                  Math.min(
+                    window.innerHeight - 150,
+                    window.innerHeight - e.clientY - 30,
+                  ),
+                ),
+              );
+          };
+          const up = () => setIsResizing(false);
+          window.addEventListener("mousemove", move);
+          window.addEventListener("mouseup", up);
+          return () => {
+            window.removeEventListener("mousemove", move);
+            window.removeEventListener("mouseup", up);
+          };
+        }, [isResizing]);
+
+        useEffect(() => {
+          const unsubscribe = auth.onAuthStateChanged((u) => {
+            setUser(u);
+            setLoading(false);
+            if (u) {
+              setNickname(localStorage.getItem("nickname") || "");
+              setLoginId(localStorage.getItem("teamId") || "");
+            }
+          });
+          return () => unsubscribe();
+        }, []);
+
+        useEffect(() => {
+          if (!user) return;
+          const base = db
+            .collection("artifacts")
+            .doc(appId)
+            .collection("public")
+            .doc("data");
+          const unsubP = base
+            .collection("workspace_planner")
+            .doc("main")
+            .onSnapshot((snap) => {
+              if (snap.exists) setPlannerData(snap.data());
+            });
+          const unsubC = base
+            .collection("workspace_chat")
+            .orderBy("id", "asc")
+            .onSnapshot((snap) => {
+              const msgs = [];
+              snap.forEach((doc) =>
+                msgs.push({ docId: doc.id, ...doc.data() }),
+              );
+              setMessages(msgs.slice(-100));
+            });
+          const unsubU = base
+            .collection("workspace_users")
+            .orderBy("lastActive", "asc")
+            .onSnapshot((snap) => {
+              const users = [];
+              snap.forEach((doc) => users.push({ uid: doc.id, ...doc.data() }));
+              setWorkspaceUsers(users);
+            });
+          return () => {
+            unsubP();
+            unsubC();
+            unsubU();
+          };
+        }, [user]);
+
+        const handleAuthSubmit = async (e) => {
+          e.preventDefault();
+          if (!nickname) return setAuthError("닉네임을 입력하세요.");
+          setAuthError("");
+          try {
+            const email = `${loginId}@planner.com`;
+            let res;
+            if (authMode === "login")
+              res = await auth.signInWithEmailAndPassword(email, password);
+            else
+              res = await auth.createUserWithEmailAndPassword(email, password);
+
+            localStorage.setItem("nickname", nickname);
+            localStorage.setItem("teamId", loginId);
+
+            await db
+              .collection("artifacts")
+              .doc(appId)
+              .collection("public")
+              .doc("data")
+              .collection("workspace_users")
+              .doc(res.user.uid)
+              .set({
+                name: nickname,
+                lastActive: firebase.firestore.FieldValue.serverTimestamp(),
+              });
+          } catch (err) {
+            setAuthError("ID와 비밀번호를 확인하세요.");
+          }
+        };
+
+        const addTask = (cat) => {
+          const input = document.getElementById("todo-input");
+          if (!input || !input.value.trim()) return;
+          const target = cat === "inbox" ? "daily" : cat;
+          const newData = {
+            ...plannerData,
+            [target]: [
+              ...(plannerData[target] || []),
+              {
+                id: Date.now(),
+                text: input.value.trim(),
+                done: false,
+                important: false,
+                createdBy: user.uid,
+                creatorName: nickname,
+              },
+            ],
+          };
+          setPlannerData(newData);
+          sync(newData);
+          input.value = "";
+        };
+
+        const sendMessage = async (e) => {
+          if (
+            (e.type === "keydown" && e.key !== "Enter") ||
+            !chatInput.trim() ||
+            !user
+          )
+            return;
+          const now = new Date();
+          const msg = {
+            id: Date.now(),
+            text: chatInput,
+            senderUid: user.uid,
+            senderName: nickname,
+            time: `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+          };
+          setChatInput("");
+          await db
+            .collection("artifacts")
+            .doc(appId)
+            .collection("public")
+            .doc("data")
+            .collection("workspace_chat")
+            .add(msg);
+        };
+
+        const deleteMessage = async (docId) => {
+          await db
+            .collection("artifacts")
+            .doc(appId)
+            .collection("public")
+            .doc("data")
+            .collection("workspace_chat")
+            .doc(docId)
+            .delete();
+        };
+
+        const fetchAIAdvice = async () => {
+          if (aiLoading) return;
+          setAiLoading(true);
+          setShowAIModal(true);
+          setAiRecommendations([]);
+          try {
+            // 💡 하드코딩된 localhost 대신 apiBase를 사용하여 호출합니다.
+            const res = await fetch(`${apiBase}/api/ai/recommend`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                weather: "N/A",
+                motto: plannerData.motto,
+                plans:
+                  (plannerData?.daily || []).map((t) => t.text).join(", ") ||
+                  "없음",
+              }),
+            });
+            const d = await res.json();
+            setAiRecommendations(d.recoms || []);
+          } catch (e) {
+            setAiRecommendations([
+              { title: "연결 지연", desc: "AI 서버 상태를 확인해주세요." },
+            ]);
+          } finally {
+            setAiLoading(false);
+          }
+        };
+
+        const addRecommendedTask = (title) => {
+          const newItem = {
+            id: Date.now(),
+            text: `✨ ${title}`,
+            done: false,
+            important: true,
+            createdBy: user.uid,
+            creatorName: nickname,
+          };
+          const newData = {
+            ...plannerData,
+            daily: [...(plannerData.daily || []), newItem],
+          };
+          setPlannerData(newData);
+          sync(newData);
+          setAiRecommendations((prev) => prev.filter((r) => r.title !== title));
+        };
+
+        useEffect(() => {
+          const checkOutside = (e) => {
+            if (
+              isChatExpanded &&
+              chatContainerRef.current &&
+              !chatContainerRef.current.contains(e.target)
+            )
+              setIsChatExpanded(false);
+          };
+          document.addEventListener("mousedown", checkOutside);
+          return () => document.removeEventListener("mousedown", checkOutside);
+        }, [isChatExpanded]);
+
+        useEffect(() => {
+          chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, [messages, isChatExpanded]);
+
+        if (loading)
+          return (
+            <div className="h-screen flex items-center justify-center font-black italic text-lightAccent text-center-force w-full">
+              SYSTEM READY...
+            </div>
+          );
+
+        if (!user)
+          return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
+              <div className="bg-white p-14 rounded-[3.5rem] shadow-2xl w-[480px] flex flex-col items-center animate-pop">
+                <h2 className="text-4xl font-black text-lightAccent mb-3 italic tracking-tight text-center-force w-full">
+                  Smart Planner
+                </h2>
+                <p className="text-slate-400 mb-10 text-[11px] font-black uppercase tracking-widest text-center-force w-full">
+                  TEAM WORKSPACE
+                </p>
+
+                <form
+                  onSubmit={handleAuthSubmit}
+                  className="w-full flex flex-col items-center space-y-6"
+                >
+                  <input
+                    type="text"
+                    value={loginId}
+                    placeholder="Workspace ID"
+                    className="w-full p-5 bg-slate-50 border-2 rounded-[2rem] outline-none font-bold text-center-force focus:border-lightAccent transition-all"
+                    onChange={(e) => setLoginId(e.target.value)}
+                    required
+                  />
+                  <input
+                    type="password"
+                    value={password}
+                    placeholder="Key"
+                    className="w-full p-5 bg-slate-50 border-2 rounded-[2rem] outline-none font-bold text-center-force focus:border-lightAccent transition-all"
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                  <input
+                    type="text"
+                    value={nickname}
+                    placeholder="Nickname"
+                    className="w-full p-5 bg-blue-50 border-2 border-blue-100 rounded-[2rem] outline-none font-bold text-blue-600 text-center-force focus:border-blue-500 transition-all"
+                    onChange={(e) => setNickname(e.target.value)}
+                    required
+                  />
+                  {authError && (
+                    <p className="text-red-500 text-sm font-bold text-center-force w-full">
+                      {authError}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="w-full h-[64px] bg-lightAccent text-white rounded-[2.2rem] font-black hover:opacity-90 active:scale-95 text-lg uppercase shadow-xl transition-all login-btn-center"
+                  >
+                    입장하기
+                  </button>
+                </form>
+
+                <button
+                  onClick={() =>
+                    setAuthMode(authMode === "login" ? "signup" : "login")
+                  }
+                  className="mt-8 text-sm font-bold text-slate-400 hover:text-lightAccent underline underline-offset-4 text-center-force w-full"
+                >
+                  {authMode === "login"
+                    ? "처음이신가요? 회원가입"
+                    : "기존 계정으로 로그인"}
+                </button>
+              </div>
+            </div>
+          );
+
+        return (
+          <div className="h-screen flex flex-col p-6 gap-4 text-left">
+            <header className="glass-header rounded-[2.2rem] px-10 py-4 flex justify-between items-center shrink-0 panel-border relative z-50">
+              <div className="flex items-center gap-8">
+                <div className="flex flex-col text-left">
+                  <span className="text-2xl font-black text-lightAccent italic tracking-tight text-left">
+                    Smart Planner
+                  </span>
+                  <p className="text-[10px] font-black text-blue-500 uppercase text-left font-sans">
+                    USER: {nickname}
+                  </p>
+                </div>
+                <div className="h-8 w-[2px] bg-slate-200 text-left"></div>
+                <div className="flex items-center gap-4 text-left">
+                  <div className="flex flex-col text-left">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">
+                      Focus Timer
+                    </p>
+                    <p className="text-lg font-black text-slate-700 tabular-nums text-left">
+                      {formatTime(seconds)}
+                    </p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => setIsTimerActive(!isTimerActive)}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${isTimerActive ? "bg-rose-50 text-rose-500 shadow-sm" : "bg-emerald-50 text-emerald-500 shadow-sm"}`}
+                    >
+                      {isTimerActive ? (
+                        <svg
+                          className="w-4 h-4"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                        </svg>
+                      ) : (
+                        <svg
+                          className="w-4 h-4 ml-0.5"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSeconds(0);
+                        setIsTimerActive(false);
+                      }}
+                      className="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition-colors"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-80 text-center">
+                <h1 className="text-lg font-bold text-lightAccent italic truncate max-w-lg text-center-force w-full tracking-tight">
+                  "{plannerData?.motto || "오늘의 목표를 설정하세요"}"
+                </h1>
+                {plannerData?.memo && (
+                  <p className="text-[10px] text-slate-400 font-bold truncate max-w-md mt-0.5 text-center-force w-full uppercase tracking-tighter">
+                    {plannerData.memo}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-4 items-center text-right">
+                <div className="hidden xl:block text-right mr-2">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    TEAM ID
+                  </p>
+                  <p className="text-sm font-bold text-slate-700 text-right uppercase">
+                    {loginId}
+                  </p>
+                </div>
+                <button
+                  onClick={() => auth.signOut()}
+                  className="px-7 py-2.5 bg-lightAccent text-white rounded-xl text-[11px] font-black uppercase active:scale-95 transition-all shadow-md text-center"
+                >
+                  나가기
+                </button>
+              </div>
+            </header>
+
+            <div className="flex-1 flex gap-5 min-height-0 overflow-hidden text-left">
+              <aside className="w-[360px] bg-white rounded-[2.8rem] border-2 border-indigo-200 panel-border shrink-0 overflow-hidden text-left">
+                <div className="sidebar-container p-7 text-left">
+                  <h2 className="text-xl font-black text-lightAccent mb-6 flex items-center gap-3 text-left">
+                    📥 보관함
+                  </h2>
+                  <div className="space-y-4 mb-6 shrink-0 text-left">
+                    <input
+                      id="todo-input"
+                      placeholder="계획을 적어주세요"
+                      className="w-full p-4.5 bg-slate-50 border-2 border-slate-100 rounded-[1.8rem] outline-none focus:ring-2 focus:ring-lightAccent/50 font-medium text-[14px] px-8 block"
+                      onKeyDown={(e) => e.key === "Enter" && addTask("inbox")}
+                    />
+                    <div className="flex gap-2 text-left">
+                      <button
+                        onClick={() => addTask("daily")}
+                        className="flex-1 py-4 bg-emerald-500 text-white rounded-xl text-[10px] font-black active:scale-95 text-center-force"
+                      >
+                        오늘
+                      </button>
+                      <button
+                        onClick={() => addTask("weekly")}
+                        className="flex-1 py-4 bg-amber-500 text-white rounded-xl text-[10px] font-black active:scale-95 text-center-force text-center"
+                      >
+                        주간
+                      </button>
+                      <button
+                        onClick={() => addTask("monthly")}
+                        className="flex-1 py-4 bg-rose-500 text-white rounded-xl text-[10px] font-black active:scale-95 text-center-force text-center text-center"
+                      >
+                        월간
+                      </button>
+                    </div>
+                  </div>
+                  <div className="sidebar-scroll-area scroll-hide space-y-3 text-left">
+                    {(plannerData?.inbox || []).length === 0 ? (
+                      <div className="py-10 flex flex-col items-center justify-center opacity-20 text-center-force w-full font-bold uppercase tracking-widest text-xs">
+                        No Ideas
+                      </div>
+                    ) : (
+                      plannerData.inbox.map((item) => (
+                        <TaskItem
+                          key={item.id}
+                          item={item}
+                          category="inbox"
+                          teamTheme={getThemeByNicknameLocal(item.creatorName)}
+                          onToggle={(cat, id) => {
+                            const d = {
+                              ...plannerData,
+                              [cat]: plannerData[cat].map((t) =>
+                                t.id === id ? { ...t, done: !t.done } : t,
+                              ),
+                            };
+                            setPlannerData(d);
+                            sync(d);
+                          }}
+                          onDragStart={(e, id, from) => {
+                            e.dataTransfer.setData("id", String(id));
+                            e.dataTransfer.setData("from", from);
+                          }}
+                          onToggleStar={(cat, id) => {
+                            const d = {
+                              ...plannerData,
+                              [cat]: (plannerData[cat] || []).map((t) =>
+                                t.id === id
+                                  ? { ...t, important: !t.important }
+                                  : t,
+                              ),
+                            };
+                            setPlannerData(d);
+                            sync(d);
+                          }}
+                          onDelete={(id, from) => {
+                            const d = {
+                              ...plannerData,
+                              [from]: plannerData[from].filter(
+                                (t) => t.id !== id,
+                              ),
+                            };
+                            setPlannerData(d);
+                            sync(d);
+                          }}
+                        />
+                      ))
+                    )}
+                  </div>
+                  <div className="sidebar-footer space-y-5 text-left">
+                    <button
+                      onClick={fetchAIAdvice}
+                      className={`w-full py-4 rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-lg ${aiLoading ? "opacity-50" : "bg-lightAccent text-white hover:opacity-90 ai-glow"} transition-all text-center-force`}
+                    >
+                      {aiLoading
+                        ? "AI 분석 설계 중..."
+                        : "✨ AI 맞춤 추천 받기"}
+                    </button>
+                    <div className="grid grid-cols-1 gap-4 opacity-70 px-1 text-left text-left">
+                      <div>
+                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-2 block text-left">
+                          Focus Motto
+                        </label>
+                        <input
+                          type="text"
+                          value={plannerData?.motto || ""}
+                          onChange={(e) => {
+                            const d = { ...plannerData, motto: e.target.value };
+                            setPlannerData(d);
+                            sync(d);
+                          }}
+                          className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-[13px] font-bold outline-none focus:ring-2 focus:ring-lightAccent/50"
+                          placeholder="목표 입력"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-2 block text-left text-left">
+                          Quick Notes
+                        </label>
+                        <textarea
+                          value={plannerData?.memo || ""}
+                          onChange={(e) => {
+                            const d = { ...plannerData, memo: e.target.value };
+                            setPlannerData(d);
+                            sync(d);
+                          }}
+                          className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-[13px] font-medium outline-none h-24 resize-none focus:ring-2 focus:ring-lightAccent/50 scroll-hide text-left"
+                          placeholder="메모 입력"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </aside>
+
+              <main className="flex-1 grid grid-cols-3 gap-5 overflow-hidden h-full text-left">
+                <Column
+                  title="오늘 계획"
+                  category="daily"
+                  items={plannerData?.daily || []}
+                  getThemeByNickname={(name) => getThemeByNicknameLocal(name)}
+                  onMove={(id, from, to) => {
+                    const item = (plannerData[from] || []).find(
+                      (i) => i.id === id,
+                    );
+                    if (item) {
+                      const d = {
+                        ...plannerData,
+                        [from]: plannerData[from].filter((i) => i.id !== id),
+                        [to]: [...(plannerData[to] || []), item],
+                      };
+                      setPlannerData(d);
+                      sync(d);
+                    }
+                  }}
+                  onToggle={(cat, id) => {
+                    const d = {
+                      ...plannerData,
+                      [cat]: plannerData[cat].map((t) =>
+                        t.id === id ? { ...t, done: !t.done } : t,
+                      ),
+                    };
+                    setPlannerData(d);
+                    sync(d);
+                  }}
+                  onToggleStar={(cat, id) => {
+                    const d = {
+                      ...plannerData,
+                      [cat]: (plannerData[cat] || []).map((t) =>
+                        t.id === id ? { ...t, important: !t.important } : t,
+                      ),
+                    };
+                    setPlannerData(d);
+                    sync(d);
+                  }}
+                  onDelete={(id, from) => {
+                    const d = {
+                      ...plannerData,
+                      [from]: (plannerData[from] || []).filter(
+                        (t) => t.id !== id,
+                      ),
+                    };
+                    setPlannerData(d);
+                    sync(d);
+                  }}
+                  onClear={(cat) => {
+                    if (window.confirm("전체 삭제?")) {
+                      const d = { ...plannerData, [cat]: [] };
+                      setPlannerData(d);
+                      sync(d);
+                    }
+                  }}
+                  accentColor="emerald"
+                />
+                <Column
+                  title="주간 계획"
+                  category="weekly"
+                  items={plannerData?.weekly || []}
+                  getThemeByNickname={(name) => getThemeByNicknameLocal(name)}
+                  onMove={(id, from, to) => {
+                    const item = (plannerData[from] || []).find(
+                      (i) => i.id === id,
+                    );
+                    if (item) {
+                      const d = {
+                        ...plannerData,
+                        [from]: plannerData[from].filter((i) => i.id !== id),
+                        [to]: [...(plannerData[to] || []), item],
+                      };
+                      setPlannerData(d);
+                      sync(d);
+                    }
+                  }}
+                  onToggle={(cat, id) => {
+                    const d = {
+                      ...plannerData,
+                      [cat]: plannerData[cat].map((t) =>
+                        t.id === id ? { ...t, done: !t.done } : t,
+                      ),
+                    };
+                    setPlannerData(d);
+                    sync(d);
+                  }}
+                  onToggleStar={(cat, id) => {
+                    const d = {
+                      ...plannerData,
+                      [cat]: (plannerData[cat] || []).map((t) =>
+                        t.id === id ? { ...t, important: !t.important } : t,
+                      ),
+                    };
+                    setPlannerData(d);
+                    sync(d);
+                  }}
+                  onDelete={(id, from) => {
+                    const d = {
+                      ...plannerData,
+                      [from]: (plannerData[from] || []).filter(
+                        (t) => t.id !== id,
+                      ),
+                    };
+                    setPlannerData(d);
+                    sync(d);
+                  }}
+                  onClear={(cat) => {
+                    if (window.confirm("전체 삭제?")) {
+                      const d = { ...plannerData, [cat]: [] };
+                      setPlannerData(d);
+                      sync(d);
+                    }
+                  }}
+                  accentColor="amber"
+                />
+                <Column
+                  title="월간 계획"
+                  category="monthly"
+                  items={plannerData?.monthly || []}
+                  getThemeByNickname={(name) => getThemeByNicknameLocal(name)}
+                  onMove={(id, from, to) => {
+                    const item = (plannerData[from] || []).find(
+                      (i) => i.id === id,
+                    );
+                    if (item) {
+                      const d = {
+                        ...plannerData,
+                        [from]: plannerData[from].filter((i) => i.id !== id),
+                        [to]: [...(plannerData[to] || []), item],
+                      };
+                      setPlannerData(d);
+                      sync(d);
+                    }
+                  }}
+                  onToggle={(cat, id) => {
+                    const d = {
+                      ...plannerData,
+                      [cat]: plannerData[cat].map((t) =>
+                        t.id === id ? { ...t, done: !t.done } : t,
+                      ),
+                    };
+                    setPlannerData(d);
+                    sync(d);
+                  }}
+                  onToggleStar={(cat, id) => {
+                    const d = {
+                      ...plannerData,
+                      [cat]: (plannerData[cat] || []).map((t) =>
+                        t.id === id ? { ...t, important: !t.important } : t,
+                      ),
+                    };
+                    setPlannerData(d);
+                    sync(d);
+                  }}
+                  onDelete={(id, from) => {
+                    const d = {
+                      ...plannerData,
+                      [from]: (plannerData[from] || []).filter(
+                        (t) => t.id !== id,
+                      ),
+                    };
+                    setPlannerData(d);
+                    sync(d);
+                  }}
+                  onClear={(cat) => {
+                    if (window.confirm("전체 삭제?")) {
+                      const d = { ...plannerData, [cat]: [] };
+                      setPlannerData(d);
+                      sync(d);
+                    }
+                  }}
+                  accentColor="rose"
+                />
+              </main>
+            </div>
+
+            <footer className="grid grid-cols-3 gap-5 h-20 shrink-0 text-left">
+              <div className="bg-white rounded-[2.2rem] px-10 py-4 flex items-center justify-between progress-highlight text-left">
+                <div className="flex flex-col text-left">
+                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 text-left">
+                    Success
+                  </span>
+                  <span className="text-4xl font-black text-complementary text-left-force">
+                    {calculateProgress()}%
+                  </span>
+                </div>
+                <CircularProgress percentage={calculateProgress()} />
+              </div>
+              {/* 💡 채팅 영역 col-span-2 적용 및 확장 */}
+              <div
+                ref={chatContainerRef}
+                className={`col-span-2 bg-white chat-container ${isChatExpanded ? "expanded" : ""} text-left`}
+                style={isChatExpanded ? { height: chatHeight + "px" } : {}}
+              >
+                {isChatExpanded && (
+                  <>
+                    <div
+                      className="resize-handle"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setIsResizing(true);
+                      }}
+                    ></div>
+                    <div className="chat-messages scroll-hide text-left flex-1 overflow-y-auto">
+                      {messages.length > 0 ? (
+                        messages.map((m, i) => {
+                          const theme = getThemeByNicknameLocal(m.senderName);
+                          return (
+                            <div
+                              key={m.docId || i}
+                              className="flex flex-col items-start group mb-2 text-left"
+                            >
+                              <div className="flex items-center gap-2 mb-1 text-left text-left text-left">
+                                <span
+                                  className={`text-[10px] font-black ${theme.text}`}
+                                >
+                                  {m.senderName}
+                                </span>
+                                <span className="text-[9px] text-slate-300 font-bold">
+                                  {m.time}
+                                </span>
+                                {m.senderName === nickname && (
+                                  <button
+                                    onClick={() => deleteMessage(m.docId)}
+                                    className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 text-[10px] font-bold transition-opacity text-center"
+                                  >
+                                    삭제
+                                  </button>
+                                )}
+                              </div>
+                              <div
+                                className={`message-bubble shadow-sm border ${theme.bubble} text-left`}
+                              >
+                                {m.text}
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-[10px] text-center-force text-slate-300 py-10 uppercase w-full text-center">
+                          Start a conversation
+                        </p>
+                      )}
+                      <div ref={chatEndRef} />
+                    </div>
+                  </>
+                )}
+                <div className="h-20 flex items-stretch bg-white border-t shrink-0 text-left px-4">
+                  <div className="flex-1 relative flex items-center text-left">
+                    <input
+                      type="text"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={sendMessage}
+                      onFocus={() => setIsChatExpanded(true)}
+                      className="w-full pl-12 pr-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-full text-[13px] font-bold outline-none focus:ring-2 focus:ring-indigo-200 transition-all text-left"
+                      placeholder="팀원들과 대화하세요 (Enter)"
+                    />
+                    <span className="absolute left-5 text-slate-300 text-lg text-left">
+                      💬
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </footer>
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<App />);
+    </script>
+  </body>
+</html>
