@@ -1,7 +1,8 @@
 환경 변수 파일 (절대 업로드 금지)
 
 .env
-.env.local
+.env.*
+!.env.example
 
 빌드 결과물 및 의존성
 
