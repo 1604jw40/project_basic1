@@ -40,6 +40,9 @@ struct FirebaseConfig {
 
 #[tokio::main]
 async fn main() {
+    // 로컬 .env는 선택 사항이며, 이미 설정된 환경 변수를 덮어쓰지 않습니다.
+    dotenv::dotenv().ok();
+
     // CORS 설정: 외부 접속 및 로컬 테스트를 위해 모든 출처 허용
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -82,13 +85,19 @@ async fn get_firebase_config() -> impl IntoResponse {
 
 // Google Gemini API를 호출하여 결과를 반환하는 함수
 async fn handle_ai_recommendation(Json(payload): Json<AIRequest>) -> impl IntoResponse {
-    // 💡 Gemini API 키를 코드에 직접 명시합니다.
-    let api_key = "AIzaSyD1CqpjQfcaZLbn3DZ7jT7ovXsOJ6f5UM0";
+    // 비밀값을 소스나 로그에 포함하지 않습니다.
+    let api_key = match std::env::var("GEMINI_API_KEY") {
+        Ok(value) if !value.trim().is_empty() => value.trim().to_owned(),
+        _ => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                "AI 추천을 사용할 수 없습니다. 서버에 GEMINI_API_KEY를 설정하세요.",
+            ).into_response();
+        }
+    };
 
-    let url = format!(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={}",
-        api_key
-    );
+    let url =
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
     let client = Client::new();
     
@@ -101,7 +110,8 @@ async fn handle_ai_recommendation(Json(payload): Json<AIRequest>) -> impl IntoRe
 
     // 외부 API 호출
     let response = client
-        .post(&url)
+        .post(url)
+        .header("x-goog-api-key", &api_key)
         .json(&serde_json::json!({
             "contents": [{ "parts": [{ "text": prompt }] }],
             "generationConfig": { "responseMimeType": "application/json", "temperature": 0.5 }
